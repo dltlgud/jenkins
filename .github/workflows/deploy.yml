@@ -27,8 +27,7 @@ jobs:
 
     # gradle 빌드
     - name: Build with Gradle
-      run: |
-        java -jar $GITHUB_WORKSPACE/gradle/wrapper/gradle-wrapper.jar --gradle-user-home .gradle build
+      run: ./gradlew build
       
     - name: Set SSH key permissions
       run: |

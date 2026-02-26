@@ -25,9 +25,14 @@ jobs:
       run: |
         chmod +x ./gradlew
 
-    # gradle 빌드
+    # gradle 빌드 (직접 경로 및 환경 변수 사용)
     - name: Build with Gradle
-      run: ./gradlew build
+      run: |
+        # 1. 파일이 있는지 위치를 강제로 확인
+        ls -l $GITHUB_WORKSPACE/gradle/wrapper/gradle-wrapper.jar
+        
+        # 2. 래퍼 스크립트를 직접 실행하지 않고, 자바 명령어로 jar를 직접 호출
+        java -jar $GITHUB_WORKSPACE/gradle/wrapper/gradle-wrapper.jar build
       
     - name: Set SSH key permissions
       run: |

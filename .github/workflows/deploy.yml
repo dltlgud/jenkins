@@ -28,7 +28,6 @@ jobs:
     # gradle 빌드
     - name: Build with Gradle
       run: ./gradlew build
-      working-directory: jenkins
       
     - name: Set SSH key permissions
       run: |

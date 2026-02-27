@@ -55,7 +55,7 @@ jobs:
       # 4. 실행명령 : run 
       - name: Deploy on server using DockerHub image
         run: |
-          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no ubuntu@54.180.29.19 << 'EOF'
+          ssh ubuntu@54.180.29.19 << 'EOF'
             docker stop spring-jenkins || true
             docker rm spring-jenkins || true
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/spring-jenkins:latest

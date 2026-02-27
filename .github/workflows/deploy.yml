@@ -3,56 +3,61 @@ name: Deploy with DockerHub to Ubuntu Server
 on:
   push:
     branches:
-      - main
+      - main  # main 브랜치에 푸시될 때 실행
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. 코드 체크아웃
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      # 2. JDK 설정 (빌드를 위해 필요)
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set gradlew permissions
-        run: chmod +x ./gradlew
-       
+      # 3. 권한 부여 및 빌드
       - name: Build with Gradle
-        run: ./gradlew clean build
+        run: |
+          chmod +x ./gradlew
+          ./gradlew clean build
 
+      # 4. Docker Hub 로그인
       - name: Log in to DockerHub
         run: echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
+      # 5. Docker 이미지 빌드 및 푸시
       - name: Build and Push Docker image
         run: |
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/spring-jenkins:latest .
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/spring-jenkins:latest
 
-      # --- 여기서부터 SSH 접속 및 배포 설정 수정 ---
+      # 6. SSH 접속 및 원격 배포 (문제 해결의 핵심 구간)
       - name: Setup SSH and Deploy
         run: |
-          # 1. SSH 키 설정 (가장 확실한 파일 생성 방식)
+          # SSH 키 파일 생성 및 권한 설정
           mkdir -p ~/.ssh
-          echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          # 서버 IP 등록
+          echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          
+          # 서버 식별 정보(Fingerprint) 등록
           ssh-keyscan -H 54.180.29.19 >> ~/.ssh/known_hosts
 
-          # 2. SSH 접속 및 명령어 실행
-          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no ubuntu@54.180.29.19 << 'EOF'
-            # 9090 포트를 사용하는 모든 프로세스 강제 종료 (Docker 외 프로세스 포함)
+          # SSH 접속 실행 (-i 옵션으로 생성한 키 파일을 직접 지정)
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ubuntu@54.180.29.19 << 'EOF'
+            # 9090 포트를 사용 중인 모든 프로세스 강제 종료 (포트 에러 해결)
             sudo fuser -k 9090/tcp || true
             
-            # 기존 컨테이너 정리
+            # 기존 Docker 컨테이너 정리
             docker stop spring-jenkins || true
             docker rm spring-jenkins || true
             
-            # 최신 이미지 반영 및 실행
+            # Docker Hub에서 이미지 가져오기 및 실행
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/spring-jenkins:latest
             docker run -d --name spring-jenkins -p 9090:9090 ${{ secrets.DOCKERHUB_USERNAME }}/spring-jenkins:latest
           EOF
